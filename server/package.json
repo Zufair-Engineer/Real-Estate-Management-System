@@ -1,0 +1,23 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "this is full-stack real world Real-Estate Website",
+  "keywords": [
+    "\"Real-Estate\""
+  ],
+  "homepage": "https://github.com/Zufair-Engineer/Real-Estate-Management-System#readme",
+  "bugs": {
+    "url": "https://github.com/Zufair-Engineer/Real-Estate-Management-System/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zufair-Engineer/Real-Estate-Management-System.git"
+  },
+  "license": "ISC",
+  "author": "zufair shafique",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
