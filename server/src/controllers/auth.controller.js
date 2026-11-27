@@ -1,9 +1,9 @@
 import User from "../models/user.model.js";
 import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import cloudinary from "../config/coudinary.config.js";
+import cloudinary from "../config/cloudinary.config.js";
 import { Readable } from "stream";
-import ApiResponse from "../utils/ApiRespone.js";
+import ApiResponse from "../utils/ApiResponse.js";
 import { generateTokens } from "../utils/token.util.js";
 import bcrypt from "bcryptjs";
 
@@ -36,7 +36,7 @@ const registerController = asyncHandler(async (req , res) => {
 
     // 2. Validate Required Fields
     if(!fullName || !email || !password){
-        throw new ApiError(404 , "All Fields are Required");
+        throw new ApiError(400 , "All Fields are Required");
     }
 
     // 3. validate Password Length
@@ -45,7 +45,8 @@ const registerController = asyncHandler(async (req , res) => {
     }
 
     // 4. check Existing User
-    const existingUser = await User.findOne({email: email.toLowerCase().trim()});
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({email: normalizedEmail});
 
     if(existingUser){
         throw new ApiError(409 , "Email Is Already Exist")
@@ -55,6 +56,7 @@ const registerController = asyncHandler(async (req , res) => {
     const userRole = role === "buyer" ? "buyer" : "user";
 
     let uploadedAvatar;
+    let createdUser;
 
     try {
         // 6. if avatar provided
@@ -64,9 +66,9 @@ const registerController = asyncHandler(async (req , res) => {
         // 7. create user
         // password Automatically Hashed Pre-save Middleware
 
-        const user = await User.create({
+        createdUser = await User.create({
             fullName,
-            email,
+            email: normalizedEmail,
             password,
             phone,
             role: userRole,
@@ -79,11 +81,11 @@ const registerController = asyncHandler(async (req , res) => {
         })
 
         // 8. Generate Token
-        const {accessToken , refreshToken} = generateTokens(user._id)
+        const {accessToken , refreshToken} = generateTokens(createdUser._id)
 
         // 9. store hash RefreshToken
-        user.refreshToken = await bcrypt.hash(refreshToken , 12);
-        await user.save();
+        createdUser.refreshToken = await bcrypt.hash(refreshToken , 12);
+        await createdUser.save();
 
         // 10. set Authentication Cookies
         const cookieOptions = {
@@ -103,14 +105,14 @@ const registerController = asyncHandler(async (req , res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         })
         const safeUser = {
-            _id: user._id,
-            fullName: user.fullName,
-            email: user.email,
-            phone: user.phone,
-            avatar: user.avatar,
-            role: user.role,
-            isActive: user.isActive,
-            createdAt: user.createdAt,
+            _id: createdUser._id,
+            fullName: createdUser.fullName,
+            email: createdUser.email,
+            phone: createdUser.phone,
+            avatar: createdUser.avatar,
+            role: createdUser.role,
+            isActive: createdUser.isActive,
+            createdAt: createdUser.createdAt,
         };
 
         return res.status(201).json(
@@ -121,7 +123,7 @@ const registerController = asyncHandler(async (req , res) => {
 
         // Cleanup database user if registration fails
         if (createdUser?._id) {
-            await User.findByIdAndDelete(user._id).catch(() => {});
+            await User.findByIdAndDelete(createdUser._id).catch(() => {});
         }
 
         if(uploadedAvatar?.public_id){
@@ -147,7 +149,7 @@ const loginController = asyncHandler(async (req , res) => {
     }
 
     // 2. Find User
-    const user = await User.findOne({email}).select("+password +refreshToken");
+    const user = await User.findOne({email: email.toLowerCase().trim()}).select("+password +refreshToken");
     if(!user){
         throw new ApiError(404,"Invalid Email or Password")
     }

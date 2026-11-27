@@ -14,7 +14,7 @@ const storage = multer.memoryStorage();
 // validate upload file
 const fileFilter = (req , file , cb)=> {
     if(!ALLOWED_IMAGE_TYPES.includes(file.mimetype)){
-        return cb(400 , "Invalid File Type. Only JPEG , PNG and WEBP images Allowed" , false)
+        return cb(new ApiError(400 , "Invalid File Type. Only JPEG, PNG and WEBP images are allowed"));
     }
 
     cb(null , true)
@@ -38,7 +38,7 @@ export const handleMulterError = (err , req , res , next) => {
             return next(new ApiError(400 , "Image Size Must not exceed 2MB"));
         }
         
-        if(err.code === "LIMT_FILE_COUNT"){
+        if(err.code === "LIMIT_FILE_COUNT"){
             return next(new ApiError(400 , "Only One Image Allowed"))
         }
     

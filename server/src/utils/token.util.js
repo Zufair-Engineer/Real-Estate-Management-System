@@ -2,6 +2,10 @@
 import jwt from "jsonwebtoken";
 
 const generateAccessToken = (userId) => {
+  if (!process.env.ACCESS_TOKEN_SECRET) {
+    throw new Error("ACCESS_TOKEN_SECRET is not configured");
+  }
+
   return jwt.sign(
     { id: userId },
     process.env.ACCESS_TOKEN_SECRET,
@@ -12,6 +16,10 @@ const generateAccessToken = (userId) => {
 };
 
 const generateRefreshToken = (userId) => {
+  if (!process.env.REFRESH_TOKEN_SECRET) {
+    throw new Error("REFRESH_TOKEN_SECRET is not configured");
+  }
+
   return jwt.sign(
     { id: userId },
     process.env.REFRESH_TOKEN_SECRET,
