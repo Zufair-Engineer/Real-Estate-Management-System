@@ -6,6 +6,7 @@ import { Readable } from "stream";
 import ApiResponse from "../utils/ApiResponse.js";
 import { generateTokens } from "../utils/token.util.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 
 // Upload Avatar to cloudinary
@@ -253,9 +254,111 @@ const logoutController = asyncHandler(async (req , res) => {
   );
 })
 
+/**
+ * - refreshAccessToken
+ * - POST /api/v1/auth/refreshAccessToken
+ */
+
+const refreshAccessToken = asyncHandler(async(req , res)=>{
+    // 1. Get RefreshToken from cookie
+    const incomingRefreshToken = req.cookies?.refreshToken;
+
+    if(!incomingRefreshToken){
+        throw new ApiError(401,"Refresh Token is Required")
+    }
+
+    // 2. verify Refresh Token
+    const decoded = jwt.verify(
+        incomingRefreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+    )
+
+    // 3. Find User and include stored RefreshToken
+    const user = await User.findById(decoded.id).select("+refreshToken");
+    if(!user || !user.isActive){
+        throw new ApiError(401, "Invalid user or account inactive");
+    }
+
+    if(!user.refreshToken){
+        throw new ApiError(401,"Refresh Token Not Found")
+    }
+
+    const isTokenValid = await bcrypt.compare(incomingRefreshToken, user.refreshToken);
+    if (!isTokenValid) {
+        throw new ApiError(401, "Invalid Refresh Token");
+    }
+
+    // 5. Generate New Token
+    const {accessToken , refreshToken} = generateTokens(user._id);
+
+    // 6. Hash and Save new Refresh Token
+    user.refreshToken = await bcrypt.hash(refreshToken, 12);
+    await user.save();
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/"
+    }
+
+     // 8. Set new cookies
+    res.cookie("accessToken", accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // 9. Response
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            null,
+            "Access Token Refreshed Successfully"
+        )
+    );
+})
+
+/**
+ * - Get User Profile
+ * - GET /api/v1/auth/getme
+ */
+
+const getCurrentUser = asyncHandler(async(req, res)=>{
+    // 1. get Authenticated user from protect middleware
+    const authUser = req.user;
+
+    if(!authUser){
+        throw new ApiError(401, "User is not authenticated");
+    }
+
+    // 3. Return safe user data
+    const safeUser = {
+        _id: authUser._id,
+        fullName: authUser.fullName,
+        email: authUser.email,
+        phone: authUser.phone,
+        avatar: authUser.avatar,
+        role: authUser.role,
+        isActive: authUser.isActive,
+        createdAt: authUser.createdAt,
+        updatedAt: authUser.updatedAt,
+    };
+
+    return res.status(200).json(
+        new ApiResponse(200, { user: safeUser }, "Current user retrieved successfully")
+    );
+})
+
 export {
     registerController,
     loginController,
-    logoutController
+    logoutController,
+    getCurrentUser,
+    refreshAccessToken
 }
 
