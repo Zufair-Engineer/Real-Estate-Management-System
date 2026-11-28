@@ -329,11 +329,18 @@ const refreshAccessToken = asyncHandler(async(req , res)=>{
  */
 
 const getCurrentUser = asyncHandler(async(req, res)=>{
-    // 1. get Authenticated user from protect middleware
-    const authUser = req.user;
+    // 1. Validate the authenticated user ID attached by protect middleware
+    const userId = req.user?._id;
 
-    if(!authUser){
+    if(!userId){
         throw new ApiError(401, "User is not authenticated");
+    }
+
+    // 2. Reload the user so the response contains current account data
+    const authUser = await User.findById(userId);
+
+    if(!authUser || !authUser.isActive){
+        throw new ApiError(401, "User not found or inactive");
     }
 
     // 3. Return safe user data

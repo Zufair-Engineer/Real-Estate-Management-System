@@ -10,10 +10,10 @@ import { uploadAvatar } from "../middlewares/multer.middleware.js";
 import protect from "../middlewares/protect.middleware.js";
 const authRouter = express.Router();
 
-authRouter.post('/register' , uploadAvatar, registerController);
+authRouter.post('/register' , uploadAvatar , registerController);
 authRouter.post('/login', loginController);
 authRouter.get('/logout', protect, logoutController);
 authRouter.post('/refreshAccessToken', refreshAccessToken);
-authRouter.get('/getme', protect, getCurrentUser);
+authRouter.get(['/getme', '/me'], protect, getCurrentUser);
 
 export default authRouter
